@@ -1,0 +1,1 @@
+This folder consists of codes, functions and datasets (placeholder) to run flood risk/resilience analysis for the US Naval Facility in Annapolis, MD. The codes utilize some functionalities of INCORE, but mostly contain scripts and functions that run all the analysis outside INCORE. An authentication is required to connect to the INCORE account.
