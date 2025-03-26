@@ -7,6 +7,7 @@ from rasterio.features import geometry_mask
 from pyincore import Mapping, MappingSet, FragilityCurveSet
 from shapely.geometry import Point, LineString
 from shapely.ops import nearest_points
+from scipy.stats import norm, lognorm
 
 ########################################################################################
 ################ HAZARD EXPOSURE UTILITY FUNCTIONS #####################################
@@ -569,50 +570,214 @@ restoration_road = {"DS_0":
                         }
                        }
 
-def building_recovery_model(buildings_df):
-    damage_states = ['DS_0', 'DS_1', 'DS_2', 'DS_3']
+# def building_recovery_model(buildings_df):
+#     damage_states = ['DS_0', 'DS_1', 'DS_2', 'DS_3']
 
-    exp_downtime = np.zeros_like(np.array(buildings_df['DS_0']))
+#     exp_downtime = np.zeros_like(np.array(buildings_df['DS_0']))
     
-    for DS in damage_states:
-        median = restoration_building[DS]["mu"]
-        disp = restoration_building[DS]["std"]
+#     for DS in damage_states:
+#         median = restoration_building[DS]["mu"]
+#         disp = restoration_building[DS]["std"]
 
-        exp_downtime += median * np.array(buildings_df[DS])
+#         exp_downtime += median * np.array(buildings_df[DS])
 
-    buildings_df['downtime_expected'] = exp_downtime
+#     buildings_df['downtime_expected'] = exp_downtime
 
-    return buildings_df
+#     return buildings_df
 
-def building_power_recovery_model(buildings_df):
-    damage_states = ['DS_nopower', 'DS_power']
+# def building_power_recovery_model(buildings_df):
+#     damage_states = ['DS_nopower', 'DS_power']
 
-    exp_downtime = np.zeros_like(np.array(buildings_df['DS_nopower']))
+#     exp_downtime = np.zeros_like(np.array(buildings_df['DS_nopower']))
     
-    for DS in damage_states:
-        median = restoration_power[DS]["mu"]
-        disp = restoration_power[DS]["std"]
+#     for DS in damage_states:
+#         median = restoration_power[DS]["mu"]
+#         disp = restoration_power[DS]["std"]
 
-        exp_downtime += median * np.array(buildings_df[DS])
+#         exp_downtime += median * np.array(buildings_df[DS])
 
-    buildings_df['downtime_power'] = exp_downtime
+#     buildings_df['downtime_power'] = exp_downtime
 
-    return buildings_df
+#     return buildings_df
 
-def road_recovery_model(edges_df):
-    damage_states = ['DS_0', 'DS_1']
+# def road_recovery_model(edges_df):
+#     damage_states = ['DS_0', 'DS_1']
 
-    exp_downtime = np.zeros_like(np.array(edges_df['DS_0']))
+#     exp_downtime = np.zeros_like(np.array(edges_df['DS_0']))
     
-    for DS in damage_states:
-        median = restoration_road[DS]["mu"]
-        disp = restoration_road[DS]["std"]
+#     for DS in damage_states:
+#         median = restoration_road[DS]["mu"]
+#         disp = restoration_road[DS]["std"]
 
-        exp_downtime += median * np.array(edges_df[DS])
+#         exp_downtime += median * np.array(edges_df[DS])
 
-    edges_df['downtime_expected'] = exp_downtime
+#     edges_df['downtime_expected'] = exp_downtime
 
-    return edges_df
+#     return edges_df
+
+# Compute Recovery Given Sa
+def get_recovery_curve_buildings(data_df: pd.DataFrame):
+
+    time = np.arange(0.0, 120.0, 1.0)
+    
+    DSs = [1,2,3] #All damage states
+    
+    data_df['time'] = None
+    data_df['recov'] = None
+
+    data_df['mean_downtime'] = 0
+    data_df['std_downtime'] = 0
+    
+    data_df = data_df.astype({'time': 'object',
+                             'recov': 'object'})
+    
+    for i, row in data_df.iterrows():
+        
+        Pf = [0]*4 #presizing including the no damage state
+        Pf[0] = row['DS_0'] #None
+        Pf[1] = row['DS_1'] #DS1 
+        Pf[2] = row['DS_2'] #DS2 
+        Pf[3] = row['DS_3'] #DS2                                   #complete
+        
+        Pfn = Pf[0] 
+        for ds in DSs:
+            mean = restoration_building['DS_{}'.format(ds)]['mu']
+            std = restoration_building['DS_{}'.format(ds)]['std']
+            recov_given_failure = norm.cdf(time, mean, std)
+            
+            Pfn = Pfn + recov_given_failure * Pf[ds]
+     
+        #reset the variable names so that they are easy to be understood by the ENG team
+        time_days = time
+        functionality = Pfn
+    
+        data_df.at[i,'time'] = time
+        data_df.at[i,'recov'] = functionality
+
+        #Compute mean downtime
+        expected_downtime = np.trapz(1-Pfn,time)  
+        
+        #Compute standard deviation of downtime
+        expected_square_downtime = np.trapz(2*time*(1-Pfn), time)  
+        variance_downtime = expected_square_downtime - expected_downtime ** 2
+        standard_deviation = np.sqrt(variance_downtime) 
+        
+        #Final output in days (not converted to hours unlike WS and floods)
+        mean_downtime_days = expected_downtime
+        stdev_downtime_days = standard_deviation
+
+        data_df.loc[i, 'mean_downtime'] = mean_downtime_days
+        data_df.loc[i, 'std_downtime'] = stdev_downtime_days
+
+    return data_df
+
+# Compute Recovery Given Sa
+def get_recovery_curve_power(data_df: pd.DataFrame):
+
+    time = np.arange(0.0, 10.0, 1.0)
+    
+    DSs = [1] #All damage states
+    
+    data_df['time_power'] = None
+    data_df['recov_power'] = None
+
+    data_df['mean_downtime_power'] = 0
+    data_df['std_downtime_power'] = 0
+    
+    data_df = data_df.astype({'time': 'object',
+                             'recov_power': 'object'})
+    
+    for i, row in data_df.iterrows():
+        
+        Pf = [0]*2 #presizing including the no damage state
+        Pf[0] = row['DS_nopower'] #None
+        Pf[1] = row['DS_power'] #DS1
+        
+        Pfn = Pf[0] 
+        for ds in DSs:
+            mean = restoration_power['DS_power']['mu']
+            std = restoration_power['DS_power']['std']
+            recov_given_failure = norm.cdf(time, mean, std)
+            
+            Pfn = Pfn + recov_given_failure * Pf[ds]
+     
+        #reset the variable names so that they are easy to be understood by the ENG team
+        time_days = time
+        functionality = Pfn
+    
+        data_df.at[i,'time_power'] = time
+        data_df.at[i,'recov_power'] = functionality
+
+        #Compute mean downtime
+        expected_downtime = np.trapz(1-Pfn,time)  
+        
+        #Compute standard deviation of downtime
+        expected_square_downtime = np.trapz(2*time*(1-Pfn), time)  
+        variance_downtime = expected_square_downtime - expected_downtime ** 2
+        standard_deviation = np.sqrt(variance_downtime) 
+        
+        #Final output in days (not converted to hours unlike WS and floods)
+        mean_downtime_days = expected_downtime
+        stdev_downtime_days = standard_deviation
+
+        data_df.loc[i, 'mean_downtime_power'] = mean_downtime_days
+        data_df.loc[i, 'std_downtime_power'] = stdev_downtime_days
+        
+    return data_df
+
+# Compute Recovery Given Sa
+def get_recovery_curve_roads(data_df: pd.DataFrame):
+
+    time = np.arange(0.0, 10.0, 1.0)
+    
+    DSs = [1] #All damage states
+    
+    data_df['time'] = None
+    data_df['recov'] = None
+
+    data_df['mean_downtime'] = 0
+    data_df['std_downtime'] = 0
+    
+    data_df = data_df.astype({'time': 'object',
+                             'recov': 'object'})
+    
+    for i, row in data_df.iterrows():
+        
+        Pf = [0]*2 #presizing including the no damage state
+        Pf[0] = row['DS_0'] #None
+        Pf[1] = row['DS_1'] #DS1
+        
+        Pfn = Pf[0] 
+        for ds in DSs:
+            mean = restoration_road['DS_1']['mu']
+            std = restoration_road['DS_1']['std']
+            recov_given_failure = norm.cdf(time, mean, std)
+            
+            Pfn = Pfn + recov_given_failure * Pf[ds]
+     
+        #reset the variable names so that they are easy to be understood by the ENG team
+        time_days = time
+        functionality = Pfn
+    
+        data_df.at[i,'time'] = time
+        data_df.at[i,'recov'] = functionality
+
+        #Compute mean downtime
+        expected_downtime = np.trapz(1-Pfn,time)  
+        
+        #Compute standard deviation of downtime
+        expected_square_downtime = np.trapz(2*time*(1-Pfn), time)  
+        variance_downtime = expected_square_downtime - expected_downtime ** 2
+        standard_deviation = np.sqrt(variance_downtime) 
+        
+        #Final output in days (not converted to hours unlike WS and floods)
+        mean_downtime_days = expected_downtime
+        stdev_downtime_days = standard_deviation
+
+        data_df.loc[i, 'mean_downtime'] = mean_downtime_days
+        data_df.loc[i, 'std_downtime'] = stdev_downtime_days
+
+    return data_df
 
 ########################################################################################
 ################ MONTE CARLO SIMULATION ################################################
@@ -656,4 +821,28 @@ def compute_shortest_paths(G, source_nodes, target_nodes, weight = 'length'):
     
     return results
 
+# Compute the number of connected node pairs in the given graph
+def count_connected_pairs(G):
+    N = len(G)
+    if N < 2:
+        return 0  # No pairs in a single-node or empty graph
+
+    # Total possible node pairs
+    total_pairs = N * (N - 1) // (1 if G.is_directed() else 2)
+
+    # Count disconnected pairs
+    if G.is_directed():
+        components = list(nx.strongly_connected_components(G))  # Use weakly_connected_components if needed
+    else:
+        components = list(nx.connected_components(G))
+
+    disconnected_pairs = sum(len(comp1) * len(comp2) for i, comp1 in enumerate(components) for comp2 in components[i+1:])
+
+    # Connected pairs
+    connected_pairs = total_pairs - disconnected_pairs
+
+    frac_connected_pairs = connected_pairs/total_pairs
+
+    return frac_connected_pairs
+    
 
