@@ -4,6 +4,7 @@ import networkx as nx
 import geopandas as gpd
 import rasterio
 from rasterio.features import geometry_mask
+from rasterio.transform import rowcol
 from pyincore import Mapping, MappingSet, FragilityCurveSet
 from shapely.geometry import Point, LineString
 from shapely.ops import nearest_points
@@ -43,10 +44,10 @@ def attach_flood_hazard(gdf, raster_path, raster_value = 'inundationDepth'):
     
     # Apply the extraction logic
     if 'Point' in gdf.geom_type.unique():
-        # Filter points outside the raster bounds
-        with rasterio.open(raster_path) as src:
-            bounds = src.bounds
-        gdf = gdf[gdf['geometry'].apply(lambda geom: is_within_bounds(geom, bounds))]
+        # # Filter points outside the raster bounds
+        # with rasterio.open(raster_path) as src:
+        #     bounds = src.bounds
+        # gdf = gdf[gdf['geometry'].apply(lambda geom: is_within_bounds(geom, bounds))]
         
         gdf[raster_value] = gdf['geometry'].apply(
             lambda geom: extract_raster_value(geom, raster_data, transform)
@@ -450,18 +451,35 @@ def run_substation_damage_analysis(subs_data, fragility_curve_set_substations):
     
     return subs_data
 
-def run_buildings_power(substations_df, buildings_df, edges_bldg_subs_df):
+def run_buildings_power(epf_gdf, epn_gdf, buildings_df, edges_bldg_subs_df):
     buildings_df['DS_nopower'] = 1.0
     buildings_df['DS_power'] = 0.0
+
+    # Propagate damage from upstream EPN Nodes to downstream EPN Nodes
+    for rownum, row in epn_gdf.iterrows():
+        fromnode = row['fromnode']
+        tonode = row['tonode']
+
+        # Consider probability that power line may fail, here it does not matter
+        if 'DS_0' in row.index:
+            prob_survival_line = row['DS_0']
+        else:
+            prob_survival_line = 1.0
+
+        prob_survival_fromnode = epf_gdf.loc[fromnode, 'DS_0']
+        prob_survival_tonode = epf_gdf.loc[tonode, 'DS_0'] * prob_survival_fromnode * prob_survival_line
+
+        epf_gdf.loc[tonode, 'DS_0'] = prob_survival_tonode
+        epf_gdf.loc[tonode, 'DS_1'] = 1 - prob_survival_tonode
+
+    for rownum, row in edges_bldg_subs_df.iterrows():
+        fromnode = row['inode_subs']
+        tonode = row['jnode_buil']
+
+        buildings_df.loc[tonode, 'DS_nopowerfail'] = epf_gdf.loc[fromnode, 'DS_0']
+        buildings_df.loc[tonode, 'DS_powerfail'] = epf_gdf.loc[fromnode, 'DS_1']
     
-    for sub_id, sub_ds in zip(substations_df['ID'], substations_df['DS_1']):
-        edges_from_sub = edges_bldg_subs_df[edges_bldg_subs_df['inode_substation'] == sub_id]
-        for bldg_id in edges_bldg_subs_df['jnode_building']:
-            building_row = buildings_df.index[buildings_df['ID'] == bldg_id]
-            buildings_df.loc[building_row, 'DS_nopower'] = 1 - sub_ds
-            buildings_df.loc[building_row, 'DS_power'] = sub_ds
-    
-    return buildings_df
+    return buildings_df, epf_gdf
     
 
 def run_road_damage_analysis(edges_gdf, 
