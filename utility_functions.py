@@ -301,6 +301,7 @@ def get_building_fragility():
 
     return fragility_curve_set1, fragility_curve_set2, local_building_mapping_set
 
+
 def get_road_fragility():
 
     # create a fragility curve set with three limit state
@@ -399,6 +400,11 @@ def run_building_damage_analysis(bldg_data, local_building_mapping_set):
     
     for row in bldg_data.iterrows():
         im = row[1]['inundationDepth']
+        barrier_height = row[1]['Barrier_ht']
+
+        if im <= barrier_height:
+            im = 0
+        
         floors = row[1]['Floors']
 
         if floors == 1:
