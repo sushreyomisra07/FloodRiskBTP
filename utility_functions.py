@@ -346,6 +346,50 @@ def get_road_fragility():
 
     return fragility_curve_set
 
+def get_road_fragility_elevated(raised = 1.0):
+    log_lambda = np.log(np.exp(0.5) + raised)
+    # create a fragility curve set with three limit state
+    fragility_curve_roadway = {
+        "description": "Road Submerged",
+        "rules": [
+            {
+                "condition": [
+                    "inundationDepth > 0"
+                ],
+                "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - {})/(0.05))".format(log_lambda)
+            }
+        ],
+        "returnType": {
+            "type": "Limit State",
+            "unit": "",
+            "description": "road_overtopped"
+        }
+    }
+
+    frag_road_metadata = {
+        "id":"local_fragility_curve_set",
+        "description": "Flood Fragility of Roads",
+        "demandTypes": ["inundationDepth"],
+        "demandUnits": ["ft"],
+        "resultType":"Limit State",
+        "hazardType":"flood",
+        "inventoryType":"roads",
+        "fragilityCurves":[fragility_curve_roadway],
+        "curveParameters": [
+            {
+                "name": "inundationDepth",
+                "unit": "ft",
+                "description": "Maximum Depth from Hazard Service",
+                "fullName": "inundationDepth",
+            }
+        ]
+    }
+    
+    # construct the fragility curve object to use
+    fragility_curve_set = FragilityCurveSet(frag_road_metadata)
+
+    return fragility_curve_set
+
 def get_substation_fragility():
 
     # create a fragility curve set with three limit state
