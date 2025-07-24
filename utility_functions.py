@@ -443,7 +443,8 @@ def run_building_damage_analysis(bldg_data, local_building_mapping_set):
     pf2 = []
     
     for row in bldg_data.iterrows():
-        im = row[1]['inundationDepth']
+        im = row[1]['inundationDepth'] - row[1]['Base_eleva']
+        
         barrier_height = row[1]['Barrier_ht']
 
         if im <= barrier_height:
@@ -487,7 +488,7 @@ def run_substation_damage_analysis(subs_data, fragility_curve_set_substations):
     pf = []
     
     for row in subs_data.iterrows():
-        im = row[1]['inundationDepth']
+        im = row[1]['inundationDepth'] - row[1]['Base_eleva']
 
         probs = fragility_curve_set_substations.calculate_limit_state(hazard_values={'inundationDepth': im})
         
