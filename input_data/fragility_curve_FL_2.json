@@ -1,0 +1,16 @@
+{
+    "description": "Second Floor Submerged",
+    "rules": [
+        {
+            "condition": [
+                "inundationDepth > 0"
+            ],
+            "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - 2.5649493574615367)/(0.2))"
+        }
+    ],
+    "returnType": {
+        "type": "Limit State",
+        "unit": "",
+        "description": "Floor2_flooded"
+    }
+}

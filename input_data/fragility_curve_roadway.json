@@ -1,0 +1,16 @@
+{
+    "description": "Road Submerged",
+    "rules": [
+        {
+            "condition": [
+                "inundationDepth > 0"
+            ],
+            "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - 0.0)/(0.1))"
+        }
+    ],
+    "returnType": {
+        "type": "Limit State",
+        "unit": "",
+        "description": "road_overtopped"
+    }
+}
