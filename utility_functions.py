@@ -9,6 +9,7 @@ from pyincore import Mapping, MappingSet, FragilityCurveSet
 from shapely.geometry import Point, LineString
 from shapely.ops import nearest_points
 from scipy.stats import norm, lognorm
+import json
 
 ########################################################################################
 ################ HAZARD EXPOSURE UTILITY FUNCTIONS #####################################
@@ -156,58 +157,67 @@ def find_nearest_network_node(building, network_nodes):
 ########################################################################################
 
 def get_building_fragility():
-
-    # create a fragility curve set with three limit state
-    fragility_curve_basement = {
-        "description": "Basement Submerged",
-        "rules": [
-            {
-                "condition": [
-                    "inundationDepth > 0"
-                ],
-                "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - 0.5)/(0.05))"
-            }
-        ],
-        "returnType": {
-            "type": "Limit State",
-            "unit": "",
-            "description": "basement_flooded"
-        }
-    }
+    # Load fragilities from JSON files
+    with open("input_data/fragility_curve_basement.json", "r") as f:
+        fragility_curve_basement = json.load(f)
     
-    fragility_curve_FL_1 = {
-        "description": "First Floor Submerged",
-        "rules": [
-            {
-                "condition": [
-                    "inundationDepth > 0"
-                ],
-                "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - 1.0)/(0.2))"
-            }
-        ],
-        "returnType": {
-            "type": "Limit State",
-            "unit": "",
-            "description": "Floor1_flooded"
-        }
-    }
+    with open("input_data/fragility_curve_FL_1.json", "r") as f:
+        fragility_curve_FL_1 = json.load(f)
     
-    fragility_curve_FL_2 = {
-        "description": "Second Floor Submerged",
-        "rules": [
-            {
-                "condition": [
-                    "inundationDepth > 0"
-                ],
-                "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - 2.565)/(0.15))"
-            }
-        ],
-        "returnType": {
-            "type": "Limit State",
-            "unit": "",
-            "description": "Floor2_flooded"
-        }
-    }
+    with open("input_data/fragility_curve_FL_2.json", "r") as f:
+        fragility_curve_FL_2 = json.load(f)
+    
+    # # create a fragility curve set with three limit state
+    # fragility_curve_basement = {
+    #     "description": "Basement Submerged",
+    #     "rules": [
+    #         {
+    #             "condition": [
+    #                 "inundationDepth > 0"
+    #             ],
+    #             "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - 0.5)/(0.05))"
+    #         }
+    #     ],
+    #     "returnType": {
+    #         "type": "Limit State",
+    #         "unit": "",
+    #         "description": "basement_flooded"
+    #     }
+    # }
+    
+    # fragility_curve_FL_1 = {
+    #     "description": "First Floor Submerged",
+    #     "rules": [
+    #         {
+    #             "condition": [
+    #                 "inundationDepth > 0"
+    #             ],
+    #             "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - 1.0)/(0.2))"
+    #         }
+    #     ],
+    #     "returnType": {
+    #         "type": "Limit State",
+    #         "unit": "",
+    #         "description": "Floor1_flooded"
+    #     }
+    # }
+    
+    # fragility_curve_FL_2 = {
+    #     "description": "Second Floor Submerged",
+    #     "rules": [
+    #         {
+    #             "condition": [
+    #                 "inundationDepth > 0"
+    #             ],
+    #             "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - 2.565)/(0.15))"
+    #         }
+    #     ],
+    #     "returnType": {
+    #         "type": "Limit State",
+    #         "unit": "",
+    #         "description": "Floor2_flooded"
+    #     }
+    # }
 
     ## Fragility curve for building 2-storey or more buildings
     # place three curves into a set with extra metadata
@@ -304,23 +314,26 @@ def get_building_fragility():
 
 def get_road_fragility():
 
-    # create a fragility curve set with three limit state
-    fragility_curve_roadway = {
-        "description": "Road Submerged",
-        "rules": [
-            {
-                "condition": [
-                    "inundationDepth > 0"
-                ],
-                "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - 0.5)/(0.05))"
-            }
-        ],
-        "returnType": {
-            "type": "Limit State",
-            "unit": "",
-            "description": "road_overtopped"
-        }
-    }
+    with open("input_data/fragility_curve_roadway.json", "r") as f:
+        fragility_curve_roadway = json.load(f)
+    
+    # # create a fragility curve set with three limit state
+    # fragility_curve_roadway = {
+    #     "description": "Road Submerged",
+    #     "rules": [
+    #         {
+    #             "condition": [
+    #                 "inundationDepth > 0"
+    #             ],
+    #             "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - 0.5)/(0.05))"
+    #         }
+    #     ],
+    #     "returnType": {
+    #         "type": "Limit State",
+    #         "unit": "",
+    #         "description": "road_overtopped"
+    #     }
+    # }
 
     frag_road_metadata = {
         "id":"local_fragility_curve_set",
@@ -392,23 +405,26 @@ def get_road_fragility_elevated(raised = 1.0):
 
 def get_substation_fragility():
 
-    # create a fragility curve set with three limit state
-    fragility_curve_substation = {
-        "description": "Substation Submerged",
-        "rules": [
-            {
-                "condition": [
-                    "inundationDepth > 0"
-                ],
-                "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - 2.5)/(0.05))"
-            }
-        ],
-        "returnType": {
-            "type": "Limit State",
-            "unit": "",
-            "description": "water_in_substation"
-        }
-    }
+    with open("input_data/fragility_curve_substation.json", "r") as f:
+        fragility_curve_substation = json.load(f)
+    
+    # # create a fragility curve set with three limit state
+    # fragility_curve_substation = {
+    #     "description": "Substation Submerged",
+    #     "rules": [
+    #         {
+    #             "condition": [
+    #                 "inundationDepth > 0"
+    #             ],
+    #             "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - 2.5)/(0.05))"
+    #         }
+    #     ],
+    #     "returnType": {
+    #         "type": "Limit State",
+    #         "unit": "",
+    #         "description": "water_in_substation"
+    #     }
+    # }
 
     frag_road_metadata = {
         "id":"local_fragility_curve_set",
