@@ -360,24 +360,32 @@ def get_road_fragility():
     return fragility_curve_set
 
 def get_road_fragility_elevated(raised = 1.0):
-    log_lambda = np.log(np.exp(0.5) + raised)
-    # create a fragility curve set with three limit state
-    fragility_curve_roadway = {
-        "description": "Road Submerged",
-        "rules": [
-            {
-                "condition": [
-                    "inundationDepth > 0"
-                ],
-                "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - {})/(0.05))".format(log_lambda)
-            }
-        ],
-        "returnType": {
-            "type": "Limit State",
-            "unit": "",
-            "description": "road_overtopped"
-        }
-    }
+
+    with open("input_data/fragility_curve_roadway.json", "r") as f:
+        fragility_curve_roadway = json.load(f)
+    
+    frag_exp = fragility_curve_roadway['rules'][0]['expression']
+    median_original = np.exp(float(frag_exp[50:53]))
+    median_new = median_original + raised
+    fragility_curve_roadway['rules'][0]['expression'] = "scipy.stats.norm.cdf((math.log(inundationDepth) - {})/({}))".format(np.log(median_new), disp_road)
+    
+    # # create a fragility curve set with three limit state
+    # fragility_curve_roadway = {
+    #     "description": "Road Submerged",
+    #     "rules": [
+    #         {
+    #             "condition": [
+    #                 "inundationDepth > 0"
+    #             ],
+    #             "expression": "scipy.stats.norm.cdf((math.log(inundationDepth) - {})/(0.05))".format(log_lambda)
+    #         }
+    #     ],
+    #     "returnType": {
+    #         "type": "Limit State",
+    #         "unit": "",
+    #         "description": "road_overtopped"
+    #     }
+    # }
 
     frag_road_metadata = {
         "id":"local_fragility_curve_set",
