@@ -527,8 +527,8 @@ def run_substation_damage_analysis(subs_data, fragility_curve_set_substations):
     return subs_data
 
 def run_buildings_power(epf_gdf, epn_gdf, buildings_df, edges_bldg_subs_df):
-    buildings_df['DS_nopower'] = 1.0
-    buildings_df['DS_power'] = 0.0
+    # buildings_df['DS_nopower'] = 1.0
+    # buildings_df['DS_power'] = 0.0
 
     # Propagate damage from upstream EPN Nodes to downstream EPN Nodes
     for rownum, row in epn_gdf.iterrows():
@@ -783,8 +783,8 @@ def get_recovery_curve_power(data_df: pd.DataFrame):
     for i, row in data_df.iterrows():
         
         Pf = [0]*2 #presizing including the no damage state
-        Pf[0] = row['DS_nopower'] #None
-        Pf[1] = row['DS_power'] #DS1
+        Pf[0] = row['DS_nopowerfail'] #None
+        Pf[1] = row['DS_powerfail'] #DS1
         
         Pfn = Pf[0] 
         for ds in DSs:
