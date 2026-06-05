@@ -366,7 +366,7 @@ def get_road_fragility_elevated(raised = 1.0):
     
     frag_exp = fragility_curve_roadway['rules'][0]['expression']
     median_original = np.exp(float(frag_exp[50:53]))
-    disp_original = np.exp(float(frag_exp[58]))
+    disp_original = float(frag_exp[56:59])
     median_new = median_original + raised
     fragility_curve_roadway['rules'][0]['expression'] = "scipy.stats.norm.cdf((math.log(inundationDepth) - {})/({}))".format(np.log(median_new), disp_original)
     
